@@ -2,7 +2,7 @@ name: Build Windows
 
 on:
   push:
-    branches: [ master, main, dev ]
+    branches: [ master, main, dev, feat/windows-portable-zip ]
   pull_request:
     branches: [ master, main, dev ]
   workflow_dispatch:
