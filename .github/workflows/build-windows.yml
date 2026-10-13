@@ -91,6 +91,21 @@ jobs:
         }
         New-Item -ItemType File -Force -Path (Join-Path $portableRoot 'portable.flag') | Out-Null
         Compress-Archive -Path $portableRoot -DestinationPath "$source/ProxyBridge-Windows-x64-Portable.zip" -Force
+        $zipPath = "$source/ProxyBridge-Windows-x64-Portable.zip"
+        if (-not (Test-Path -LiteralPath $zipPath)) { throw "Portable ZIP was not created" }
+        Add-Type -AssemblyName System.IO.Compression
+        $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zipPath).Path)
+        try {
+          $entries = @($zip.Entries | ForEach-Object FullName)
+          foreach ($file in ($required + @('portable.flag'))) {
+            if ("ProxyBridge/$file" -notin $entries) {
+              throw "Portable ZIP missing required entry: $file"
+            }
+          }
+        } finally {
+          $zip.Dispose()
+        }
+        Write-Host "Validated portable ZIP: $zipPath"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
