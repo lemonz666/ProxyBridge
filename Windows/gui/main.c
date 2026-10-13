@@ -1028,9 +1028,23 @@ static BOOL IsElevated(void)
     return elevated;
 }
 
+static BOOL HasPortableMarker(void)
+{
+    wchar_t exe[MAX_PATH];
+    DWORD len = GetModuleFileNameW(NULL, exe, MAX_PATH);
+    if (!len || len >= MAX_PATH) return FALSE;
+    wchar_t* slash = wcsrchr(exe, L'\\');
+    if (!slash) return FALSE;
+    if (wcslen(exe) - wcslen(slash) + wcslen(L"portable.flag") >= MAX_PATH) return FALSE;
+    lstrcpyW(slash + 1, L"portable.flag");
+    DWORD attr = GetFileAttributesW(exe);
+    return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+}
+
 static BOOL ConnectEngine(void)
 {
-    int rc = PB_LoadService(&g_api);
+    // Portable builds never attach to a separately installed engine service.
+    int rc = HasPortableMarker() ? PB_IPC_NO_SERVICE : PB_LoadService(&g_api);
     if (rc == PB_IPC_OK) return TRUE;
 
     if (rc == PB_IPC_BUSY)
