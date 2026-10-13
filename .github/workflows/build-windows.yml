@@ -2,9 +2,9 @@ name: Build Windows
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ master, main, dev, feat/windows-portable-zip ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ master, main, dev ]
   workflow_dispatch:
 
 permissions:
@@ -71,6 +71,41 @@ jobs:
         cd Windows
         .\compile.ps1 -NoSign
       shell: pwsh
+
+    - name: Package portable ZIP
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $source = "Windows/output"
+        $portableRoot = "Windows/portable/ProxyBridge"
+        New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
+        $required = @(
+          "ProxyBridge.exe",
+          "ProxyBridge_CLI.exe",
+          "ProxyBridgeCore.dll",
+          "WinDivert.dll",
+          "WinDivert64.sys"
+        )
+        foreach ($file in $required) {
+          Copy-Item -LiteralPath (Join-Path $source $file) -Destination $portableRoot -ErrorAction Stop
+        }
+        New-Item -ItemType File -Force -Path (Join-Path $portableRoot 'portable.flag') | Out-Null
+        Compress-Archive -Path $portableRoot -DestinationPath "$source/ProxyBridge-Windows-x64-Portable.zip" -Force
+        $zipPath = "$source/ProxyBridge-Windows-x64-Portable.zip"
+        if (-not (Test-Path -LiteralPath $zipPath)) { throw "Portable ZIP was not created" }
+        Add-Type -AssemblyName System.IO.Compression
+        $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zipPath).Path)
+        try {
+          $entries = @($zip.Entries | ForEach-Object FullName)
+          foreach ($file in ($required + @('portable.flag'))) {
+            if ("ProxyBridge/$file" -notin $entries) {
+              throw "Portable ZIP missing required entry: $file"
+            }
+          }
+        } finally {
+          $zip.Dispose()
+        }
+        Write-Host "Validated portable ZIP: $zipPath"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

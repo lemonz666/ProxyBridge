@@ -23,6 +23,24 @@ static void w2u(const wchar_t* w, char* out, int cch)
 // paths
 static void base_dir(wchar_t* out, int cch)
 {
+    wchar_t exe[MAX_PATH];
+    DWORD len = GetModuleFileNameW(NULL, exe, MAX_PATH);
+    if (len && len < MAX_PATH)
+    {
+        wchar_t* slash = wcsrchr(exe, L'\\');
+        if (slash)
+        {
+            *slash = 0;
+            wchar_t marker[MAX_PATH];
+            _snwprintf_s(marker, MAX_PATH, _TRUNCATE, L"%s\\portable.flag", exe);
+            DWORD attr = GetFileAttributesW(marker);
+            if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
+            {
+                _snwprintf_s(out, cch, _TRUNCATE, L"%s\\data", exe);
+                return;
+            }
+        }
+    }
     wchar_t appdata[MAX_PATH];
     if (!GetEnvironmentVariableW(L"APPDATA", appdata, MAX_PATH)) appdata[0] = 0;
     _snwprintf_s(out, cch, _TRUNCATE, L"%s\\ProxyBridge", appdata);
