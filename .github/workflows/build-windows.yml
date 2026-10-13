@@ -72,6 +72,26 @@ jobs:
         .\compile.ps1 -NoSign
       shell: pwsh
 
+    - name: Package portable ZIP
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $source = "Windows/output"
+        $portableRoot = "Windows/portable/ProxyBridge"
+        New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
+        $required = @(
+          "ProxyBridge.exe",
+          "ProxyBridge_CLI.exe",
+          "ProxyBridgeCore.dll",
+          "WinDivert.dll",
+          "WinDivert64.sys"
+        )
+        foreach ($file in $required) {
+          Copy-Item -LiteralPath (Join-Path $source $file) -Destination $portableRoot -ErrorAction Stop
+        }
+        New-Item -ItemType File -Force -Path (Join-Path $portableRoot 'portable.flag') | Out-Null
+        Compress-Archive -Path $portableRoot -DestinationPath "$source/ProxyBridge-Windows-x64-Portable.zip" -Force
+
     - name: Upload artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
